@@ -12,6 +12,8 @@ import appointmentRoutes from './routes/appointment.js';
 import medicalRecordRoutes from './routes/medicalRecords.js';
 import prescriptionRoutes from './routes/prescription.js';
 import labResultRoutes from './routes/labResults.js';
+import messageRoutes from './routes/messages.js';
+
 dotenv.config();
 
 const app = express();
@@ -46,6 +48,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/medical-records', medicalRecordRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/lab-results', labResultRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Basic Route for Testing
 app.get('/', (req, res) => {
