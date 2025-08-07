@@ -33,7 +33,7 @@ class Doctor {
             ];
 
             const result = await query(queryText, values);
-            return result.rows[0];
+            return result.rows;
         } catch (error) {
             throw new Error(`Error creating doctor: ${error.message}`);
         }
@@ -50,10 +50,14 @@ class Doctor {
             `;
             
             const result = await query(queryText, [id]);
-            if (result.rows[0] && result.rows[0].availability) {
-                result.rows[0].availability = JSON.parse(result.rows[0].availability);
+            if (result.rows.length > 0) {
+                const doctor = result.rows[0];
+                if (doctor.availability && typeof doctor.availability === 'string') {
+                    doctor.availability = JSON.parse(doctor.availability);
+                }
+                return doctor;
             }
-            return result.rows[0] || null;
+            return null;
         } catch (error) {
             throw new Error(`Error finding doctor: ${error.message}`);
         }
@@ -70,10 +74,14 @@ class Doctor {
             `;
             
             const result = await query(queryText, [userId]);
-            if (result.rows[0] && result.rows[0].availability) {
-                result.rows[0].availability = JSON.parse(result.rows[0].availability);
+            if (result.rows.length > 0) {
+                const doctor = result.rows[0];
+                if (doctor.availability && typeof doctor.availability === 'string') {
+                    doctor.availability = JSON.parse(doctor.availability);
+                }
+                return doctor;
             }
-            return result.rows[0] || null;
+            return null;
         } catch (error) {
             throw new Error(`Error finding doctor by user ID: ${error.message}`);
         }
@@ -117,10 +125,14 @@ class Doctor {
             ];
 
             const result = await query(queryText, values);
-            if (result.rows[0] && result.rows[0].availability) {
-                result.rows[0].availability = JSON.parse(result.rows[0].availability);
+            if (result.rows.length > 0) {
+                const updatedDoctor = result.rows[0];
+                if (updatedDoctor.availability && typeof updatedDoctor.availability === 'string') {
+                    updatedDoctor.availability = JSON.parse(updatedDoctor.availability);
+                }
+                return updatedDoctor;
             }
-            return result.rows[0] || null;
+            return null;
         } catch (error) {
             throw new Error(`Error updating doctor: ${error.message}`);
         }
@@ -129,21 +141,19 @@ class Doctor {
     // Soft delete doctor (set user inactive)
     static async delete(id) {
         try {
-            // First get the user_id
             const doctorQuery = 'SELECT user_id FROM doctors WHERE id = $1';
             const doctorResult = await query(doctorQuery, [id]);
             
-            if (!doctorResult.rows[0]) {
+            if (!doctorResult.rows || doctorResult.rows.length === 0) {
                 throw new Error('Doctor not found');
             }
 
             const userId = doctorResult.rows[0].user_id;
 
-            // Soft delete by deactivating the user
             const updateQuery = 'UPDATE users SET is_active = FALSE WHERE id = $1 RETURNING *';
             const result = await query(updateQuery, [userId]);
             
-            return result.rows[0];
+            return result.rows;
         } catch (error) {
             throw new Error(`Error deleting doctor: ${error.message}`);
         }
@@ -170,41 +180,35 @@ class Doctor {
             const values = [];
             let paramCount = 0;
 
-            // Add search functionality
             if (search) {
                 paramCount++;
                 queryText += ` AND (u.first_name ILIKE $${paramCount} OR u.last_name ILIKE $${paramCount} OR d.specialization ILIKE $${paramCount})`;
                 values.push(`%${search}%`);
             }
 
-            // Filter by specialization
             if (specialization) {
                 paramCount++;
                 queryText += ` AND d.specialization ILIKE $${paramCount}`;
                 values.push(`%${specialization}%`);
             }
 
-            // Filter by availability
             if (is_available !== null) {
                 paramCount++;
                 queryText += ` AND d.is_available = $${paramCount}`;
                 values.push(is_available);
             }
 
-            // Add pagination
             queryText += ` ORDER BY d.created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
             values.push(limit, offset);
 
             const result = await query(queryText, values);
             
-            // Parse JSON availability for each doctor
             result.rows.forEach(doctor => {
-                if (doctor.availability) {
+                if (doctor.availability && typeof doctor.availability === 'string') {
                     doctor.availability = JSON.parse(doctor.availability);
                 }
             });
 
-            // Get total count for pagination
             let countQuery = `
                 SELECT COUNT(*) 
                 FROM doctors d 
@@ -234,7 +238,7 @@ class Doctor {
             }
 
             const countResult = await query(countQuery, countValues);
-            const total = parseInt(countResult.rows[0].count);
+            const total = parseInt(countResult.rows[0].count, 10);
 
             return {
                 doctors: result.rows,
@@ -266,9 +270,8 @@ class Doctor {
 
             const result = await query(queryText, [`%${specialization}%`, limit, offset]);
             
-            // Parse JSON availability
             result.rows.forEach(doctor => {
-                if (doctor.availability) {
+                if (doctor.availability && typeof doctor.availability === 'string') {
                     doctor.availability = JSON.parse(doctor.availability);
                 }
             });
@@ -283,29 +286,24 @@ class Doctor {
     static validateDoctorData(data, isUpdate = false) {
         const errors = [];
 
-        // Required fields for creation
         if (!isUpdate) {
             if (!data.user_id) errors.push('User ID is required');
             if (!data.specialization) errors.push('Specialization is required');
             if (!data.license_number) errors.push('License number is required');
         }
 
-        // License number format validation (basic)
         if (data.license_number && !/^[A-Z0-9]{6,20}$/.test(data.license_number)) {
             errors.push('License number should be 6-20 characters, letters and numbers only');
         }
 
-        // Phone validation
         if (data.phone && !/^\+?[\d\s\-\(\)]{10,15}$/.test(data.phone)) {
             errors.push('Invalid phone number format');
         }
 
-        // Years of experience validation
         if (data.years_experience !== undefined && (data.years_experience < 0 || data.years_experience > 50)) {
             errors.push('Years of experience must be between 0 and 50');
         }
 
-        // Consultation fee validation
         if (data.consultation_fee !== undefined && data.consultation_fee < 0) {
             errors.push('Consultation fee cannot be negative');
         }

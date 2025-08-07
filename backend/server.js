@@ -7,6 +7,11 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import patientRoutes from './routes/patients.js';
+import doctorRoutes from './routes/doctor.js';
+import appointmentRoutes from './routes/appointment.js';
+import medicalRecordRoutes from './routes/medicalRecords.js';
+import prescriptionRoutes from './routes/prescription.js';
+import labResultRoutes from './routes/labResults.js';
 dotenv.config();
 
 const app = express();
@@ -36,6 +41,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);
+app.use('/api/doctors', doctorRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/medical-records', medicalRecordRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/lab-results', labResultRoutes);
 
 // Basic Route for Testing
 app.get('/', (req, res) => {
